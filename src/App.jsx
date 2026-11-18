@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
   ArrowDown,
@@ -15,6 +15,9 @@ import {
   MoveUpRight,
   ScanLine,
   Settings2,
+  Search,
+  Copy,
+  Check,
   X,
 } from 'lucide-react'
 import { portfolio } from './data/portfolio'
@@ -114,6 +117,18 @@ function ExternalAction({ href, label, icon: Icon, className = '', download = fa
 
 function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [activeSection, setActiveSection] = useState('home')
+
+  useEffect(() => {
+    const sections = navigation.map((item) => document.querySelector(item.href)).filter(Boolean)
+    const updateActive = () => {
+      const current = sections.find((section) => section.getBoundingClientRect().top <= 160) || sections[0]
+      setActiveSection(current?.id || 'home')
+    }
+    updateActive()
+    window.addEventListener('scroll', updateActive, { passive: true })
+    return () => window.removeEventListener('scroll', updateActive)
+  }, [])
 
   const closeMenu = () => setMenuOpen(false)
 
@@ -143,7 +158,7 @@ function Navigation() {
         <div id="primary-menu" className={`nav-content${menuOpen ? ' is-open' : ''}`}>
           <div className="nav-links">
             {navigation.map((item) => (
-              <a key={item.href} href={item.href} onClick={closeMenu}>
+              <a key={item.href} href={item.href} onClick={closeMenu} className={activeSection === item.href.slice(1) ? 'nav-active' : ''}>
                 {item.label}
               </a>
             ))}
@@ -256,7 +271,6 @@ function Hero() {
           <div className="hero-socials" aria-label="Social profiles">
             <ExternalAction href={portfolio.github} label="GitHub" icon={GithubIcon} className="social-link" />
             <ExternalAction href={portfolio.linkedin} label="LinkedIn" icon={LinkedInIcon} className="social-link" />
-            <span className="social-note">Profiles coming soon</span>
           </div>
         </Reveal>
       </div>
@@ -304,7 +318,7 @@ function About() {
             <span className="education-index">01</span>
             <div>
               <p className="education-title">MSc Robotics</p>
-              <p className="education-note">Completed</p>
+              <p className="education-note">Completed · Pass with Merit</p>
             </div>
             <BriefcaseBusiness size={19} aria-hidden="true" />
           </div>
@@ -327,6 +341,14 @@ function About() {
 }
 
 function Expertise() {
+  const [selectedSkill, setSelectedSkill] = useState(null)
+  const selectedProjects = selectedSkill
+    ? portfolio.projects.filter((project) => project.technologies.some((technology) =>
+        technology.toLowerCase().includes(selectedSkill.toLowerCase()) ||
+        selectedSkill.toLowerCase().includes(technology.toLowerCase())
+      ))
+    : []
+
   return (
     <section className="section-shell content-section expertise-section" id="expertise">
       <Reveal>
@@ -351,27 +373,61 @@ function Expertise() {
             </div>
             <h3>{category.title}</h3>
             <ul className="skill-tags">
-              {category.skills.map((skill) => <li key={skill}>{skill}</li>)}
+              {category.skills.map((skill) => (
+                <li key={skill}>
+                  <button
+                    type="button"
+                    className={selectedSkill === skill ? 'skill-selected' : ''}
+                    onClick={() => setSelectedSkill(selectedSkill === skill ? null : skill)}
+                    aria-pressed={selectedSkill === skill}
+                  >
+                    {skill}
+                  </button>
+                </li>
+              ))}
             </ul>
           </Reveal>
         ))}
       </div>
+      {selectedSkill && (
+        <div className="skill-projects" role="status">
+          <span>Projects using {selectedSkill}</span>
+          {selectedProjects.length ? (
+            selectedProjects.map((project) => (
+              <a key={project.id} href="#projects" onClick={(event) => {
+                event.preventDefault()
+                document.querySelector(`[data-project="${project.id}"]`)?.scrollIntoView({ behavior: 'smooth' })
+              }}>
+                {project.title} <ArrowUpRight size={13} />
+              </a>
+            ))
+          ) : (
+            <p>Listed as a working area; related project details will be expanded as evidence is added.</p>
+          )}
+        </div>
+      )}
     </section>
   )
 }
 
-function ProjectCard({ project, index }) {
-  const ProjectIcon = projectIcons[index]
+function ProjectCard({ project, index, onOpen }) {
+  const ProjectIcon = projectIcons[index] || Bot
 
   return (
-    <article className="project-card">
+    <article className="project-card" data-project={project.id}>
       <div className={`project-visual project-visual-${index + 1}`} aria-hidden="true">
         <div className="project-visual-grid" />
         <span className="project-visual-index">PROJECT / 0{index + 1}</span>
-        <div className="project-placeholder-icon">
-          <ProjectIcon size={34} strokeWidth={1.15} />
-        </div>
-        <span className="project-image-note">PROJECT IMAGE<br />TO BE ADDED</span>
+        {project.image ? (
+          <img className="project-card-image" src={project.image} alt="" loading="lazy" />
+        ) : (
+          <>
+            <div className="project-placeholder-icon">
+              <ProjectIcon size={34} strokeWidth={1.15} />
+            </div>
+            <span className="project-image-note">PROJECT IMAGE<br />TO BE ADDED</span>
+          </>
+        )}
         <span className="project-corner-mark"><MoveUpRight size={15} /></span>
       </div>
       <div className="project-info">
@@ -380,12 +436,17 @@ function ProjectCard({ project, index }) {
           <h3>{project.title}</h3>
         </div>
         <p className="project-description">{project.description}</p>
+        <p className="project-status"><strong>Status:</strong> {project.status}</p>
+        <p className="project-contribution"><strong>Contribution:</strong> {project.contribution}</p>
         <ul className="project-tags">
           {project.technologies.map((technology) => <li key={technology}>{technology}</li>)}
         </ul>
         <div className="project-actions">
           <ExternalAction href={project.github} label="GitHub" icon={GithubIcon} className="text-action" />
           <ExternalAction href={project.demo} label="Demo video" icon={ArrowUpRight} className="text-action" />
+          <button type="button" className="text-action project-details-button" onClick={() => onOpen(project)}>
+            Engineering breakdown <ArrowRight size={14} />
+          </button>
         </div>
       </div>
     </article>
@@ -393,23 +454,85 @@ function ProjectCard({ project, index }) {
 }
 
 function Projects() {
+  const [filter, setFilter] = useState('All Projects')
+  const [search, setSearch] = useState('')
+  const [activeProject, setActiveProject] = useState(null)
+  const filters = ['All Projects', 'Robotics', 'Mechanical Design', 'AI / Machine Learning', 'Embedded Systems']
+  const filteredProjects = portfolio.projects.filter((project) => {
+    const matchesFilter = filter === 'All Projects' || project.categories.includes(filter)
+    const haystack = [project.title, project.description, project.status, ...project.technologies].join(' ').toLowerCase()
+    return matchesFilter && haystack.includes(search.trim().toLowerCase())
+  })
+
+  useEffect(() => {
+    if (!activeProject) return undefined
+    const closeOnEscape = (event) => event.key === 'Escape' && setActiveProject(null)
+    document.addEventListener('keydown', closeOnEscape)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape)
+      document.body.style.overflow = ''
+    }
+  }, [activeProject])
+
   return (
     <section className="section-shell content-section projects-section" id="projects">
       <Reveal>
         <SectionHeading
           eyebrow="SELECTED WORK"
-          title="Projects in progress."
+          title="Selected engineering work."
           number="03"
-          description="A snapshot of robotics and perception projects. Detailed implementation notes and results will be added when available."
+          description="Implementation evidence from repositories, with completed, partial, and planned work distinguished clearly."
         />
       </Reveal>
+      <div className="project-controls">
+        <div className="project-filters" aria-label="Filter projects">
+          {filters.map((item) => (
+            <button type="button" key={item} className={filter === item ? 'filter-active' : ''} aria-pressed={filter === item} onClick={() => setFilter(item)}>
+              {item}
+            </button>
+          ))}
+        </div>
+        <label className="project-search">
+          <Search size={16} aria-hidden="true" />
+          <span className="sr-only">Search projects</span>
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects" />
+        </label>
+      </div>
+      {filteredProjects.length === 0 && <p className="empty-projects">No projects match this search and filter.</p>}
       <div className="projects-grid">
-        {portfolio.projects.map((project, index) => (
+        {filteredProjects.map((project, index) => (
           <Reveal key={project.title} delay={(index % 2) * 0.07}>
-            <ProjectCard project={project} index={index} />
+            <ProjectCard project={project} index={index} onOpen={setActiveProject} />
           </Reveal>
         ))}
       </div>
+      {activeProject && (
+        <div className="project-modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setActiveProject(null)
+        }}>
+          <div className="project-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
+            <button type="button" className="modal-close" onClick={() => setActiveProject(null)} aria-label="Close project details"><X size={21} /></button>
+            <p className="eyebrow"><span className="eyebrow-line" />Engineering breakdown</p>
+            <h2 id="project-modal-title">{activeProject.title}</h2>
+            <div className="modal-status"><span>{activeProject.status}</span></div>
+            <p className="modal-lead">{activeProject.description}</p>
+            <div className="case-grid">
+              {Object.entries(activeProject.details).map(([key, value]) => (
+                <section className="case-section" key={key}>
+                  <h3>{key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())}</h3>
+                  {Array.isArray(value) ? <ul>{value.map((item) => <li key={item}>{item}</li>)}</ul> : <p>{value}</p>}
+                </section>
+              ))}
+            </div>
+            <div className="modal-actions">
+              <ExternalAction href={activeProject.github} label="View repository" icon={GithubIcon} className="button button-outline" />
+              <ExternalAction href={activeProject.demo} label="Watch demo" icon={ArrowUpRight} className="button button-quiet" />
+              <ExternalAction href={activeProject.readme} label="Read README" icon={ArrowUpRight} className="button button-quiet" />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
@@ -457,6 +580,13 @@ function MechanicalDesign() {
 }
 
 function Contact() {
+  const [copied, setCopied] = useState(false)
+  const copyEmail = async () => {
+    if (!portfolio.email) return
+    await navigator.clipboard.writeText(portfolio.email)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1800)
+  }
   const contactItems = [
     { label: 'Email', value: portfolio.email, icon: Mail, href: portfolio.email ? `mailto:${portfolio.email}` : null },
     { label: 'LinkedIn', value: portfolio.linkedin ? 'Open profile' : 'Profile link coming soon', icon: LinkedInIcon, href: portfolio.linkedin },
@@ -485,6 +615,12 @@ function Contact() {
               className="contact-link"
             />
           ))}
+          {portfolio.email && (
+            <button type="button" className="contact-link" onClick={copyEmail}>
+              {copied ? <Check size={17} /> : <Copy size={17} />}
+              <span>{copied ? 'Email copied' : 'Copy email'}</span>
+            </button>
+          )}
         </div>
         <p className="contact-note">Contact details will be added when provided.</p>
       </Reveal>
@@ -529,8 +665,20 @@ function Footer() {
 }
 
 function App() {
+  useEffect(() => {
+    const updateProgress = () => {
+      const documentHeight = document.documentElement.scrollHeight - window.innerHeight
+      const progress = documentHeight > 0 ? (window.scrollY / documentHeight) * 100 : 0
+      document.documentElement.style.setProperty('--scroll-progress', `${progress}%`)
+    }
+    updateProgress()
+    window.addEventListener('scroll', updateProgress, { passive: true })
+    return () => window.removeEventListener('scroll', updateProgress)
+  }, [])
+
   return (
     <>
+      <div className="scroll-progress" aria-hidden="true" />
       <a className="skip-link" href="#main-content">Skip to content</a>
       <Navigation />
       <main id="main-content">
