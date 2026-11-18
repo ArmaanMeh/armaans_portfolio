@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
   ArrowDown,
@@ -6,10 +6,14 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bot,
-  Boxes,
   BriefcaseBusiness,
+  BookOpen,
   CircuitBoard,
   Code2,
+  Expand,
+  FileText,
+  GraduationCap,
+  ImagePlus,
   Mail,
   Menu,
   MoveUpRight,
@@ -23,22 +27,108 @@ import {
 import { portfolio } from './data/portfolio'
 import './App.css'
 
+const RobotModelViewer = lazy(() => import('./components/RobotModelViewer'))
+
 const navigation = [
   { label: 'Home', href: '#home' },
   { label: 'About', href: '#about' },
   { label: 'Expertise', href: '#expertise' },
+  { label: 'Experience', href: '#experience' },
   { label: 'Projects', href: '#projects' },
   { label: 'Mechanical Design', href: '#mechanical-design' },
   { label: 'Contact', href: '#contact' },
 ]
 
 const projectIcons = [Bot, ScanLine, CircuitBoard, CircuitBoard]
+const expertiseIcons = [Bot, Settings2, Code2, ScanLine, CircuitBoard]
 
 function GithubIcon({ size = 17 }) {
   return (
     <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.56.1.76-.24.76-.54v-2.1c-3.1.67-3.76-1.32-3.76-1.32-.5-1.3-1.23-1.65-1.23-1.65-1-.68.08-.67.08-.67 1.1.08 1.68 1.12 1.68 1.12.98 1.68 2.56 1.2 3.18.92.1-.72.38-1.2.7-1.47-2.48-.28-5.08-1.23-5.08-5.5 0-1.22.44-2.21 1.15-2.99-.12-.28-.5-1.41.11-2.95 0 0 .94-.3 3.05 1.14a10.6 10.6 0 0 1 5.55 0c2.11-1.44 3.04-1.14 3.04-1.14.61 1.54.23 2.67.11 2.95.72.78 1.15 1.77 1.15 2.99 0 4.28-2.6 5.21-5.09 5.49.4.34.75 1.02.75 2.06v3.08c0 .3.2.65.77.54A11.1 11.1 0 0 0 12 .9Z" />
     </svg>
+  )
+}
+
+function Experience() {
+  const projectLinks = portfolio.projects.reduce((links, project) => {
+    links[project.id] = project.github
+    return links
+  }, {})
+
+  return (
+    <section className="section-shell content-section experience-section" id="experience">
+      <Reveal>
+        <SectionHeading
+          eyebrow="EXPERIENCE & EDUCATION"
+          title="Engineering, from practice to robotics."
+          number="03"
+          description="Professional roles, formal education, academic focus, and personal engineering projects are shown separately."
+        />
+      </Reveal>
+      <div className="experience-grid">
+        <Reveal className="experience-column">
+          <div className="experience-column-heading">
+            <BriefcaseBusiness size={18} aria-hidden="true" />
+            <h3>Professional employment</h3>
+          </div>
+          <ol className="timeline-list">
+            {portfolio.experience.employment.map((item) => (
+              <li className="timeline-item" key={`${item.organization}-${item.dates}`}>
+                <span className="timeline-date">{item.dates}</span>
+                <h4>{item.role}</h4>
+                <p className="timeline-organization">{item.organization} · {item.location}</p>
+                <ul>{item.contributions.map((contribution) => <li key={contribution}>{contribution}</li>)}</ul>
+              </li>
+            ))}
+          </ol>
+        </Reveal>
+        <Reveal className="experience-column" delay={0.08}>
+          <div className="experience-column-heading">
+            <GraduationCap size={19} aria-hidden="true" />
+            <h3>Education</h3>
+          </div>
+          <ol className="timeline-list education-timeline">
+            {portfolio.experience.education.map((item) => (
+              <li className="timeline-item" key={item.qualification}>
+                <span className="timeline-date">{item.dates}</span>
+                <h4>{item.qualification}</h4>
+                <p className="timeline-organization">{item.institution}</p>
+                {item.result && <p className="timeline-result">{item.result}</p>}
+              </li>
+            ))}
+          </ol>
+          <div className="coursework-block">
+            <div className="experience-column-heading">
+              <BookOpen size={17} aria-hidden="true" />
+              <h3>Academic coursework & focus</h3>
+            </div>
+            <ul className="coursework-tags">
+              {portfolio.experience.coursework.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+        </Reveal>
+      </div>
+      <Reveal className="personal-projects-panel">
+        <div className="experience-column-heading">
+          <CircuitBoard size={18} aria-hidden="true" />
+          <h3>Personal engineering projects</h3>
+        </div>
+        <div className="personal-projects-grid">
+          {portfolio.experience.personalProjects.map((project) => {
+            const href = project.href ? projectLinks[project.href] : ''
+            return (
+              <article className="personal-project-item" key={project.title}>
+                <span>{project.type}</span>
+                <h4>{project.title}</h4>
+                <p>{project.summary}</p>
+                {href && <a href={href} target="_blank" rel="noreferrer">Open project repository <ArrowUpRight size={13} /></a>}
+              </article>
+            )
+          })}
+        </div>
+      </Reveal>
+    </section>
   )
 }
 
@@ -130,6 +220,17 @@ function Navigation() {
     return () => window.removeEventListener('scroll', updateActive)
   }, [])
 
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key !== 'Escape') return
+      setMenuOpen(false)
+      document.querySelector('.menu-toggle')?.focus()
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [menuOpen])
+
   const closeMenu = () => setMenuOpen(false)
 
   return (
@@ -158,7 +259,13 @@ function Navigation() {
         <div id="primary-menu" className={`nav-content${menuOpen ? ' is-open' : ''}`}>
           <div className="nav-links">
             {navigation.map((item) => (
-              <a key={item.href} href={item.href} onClick={closeMenu} className={activeSection === item.href.slice(1) ? 'nav-active' : ''}>
+              <a
+                key={item.href}
+                href={item.href}
+                onClick={closeMenu}
+                className={activeSection === item.href.slice(1) ? 'nav-active' : ''}
+                aria-current={activeSection === item.href.slice(1) ? 'location' : undefined}
+              >
                 {item.label}
               </a>
             ))}
@@ -178,7 +285,7 @@ function Navigation() {
 
 function RobotPlaceholder() {
   return (
-    <div className="robot-stage" aria-label="Reserved space for an interactive 3D robot model">
+    <div className="robot-stage" aria-label="Existing robot illustration placeholder; no SolidWorks model has been supplied">
       <div className="stage-topline">
         <span className="stage-label">
           <span className="status-dot" />
@@ -224,10 +331,10 @@ function RobotPlaceholder() {
         </svg>
         <span className="robot-callout callout-left">VISION<br />SENSOR</span>
         <span className="robot-callout callout-right">ROBOT<br />PLATFORM</span>
-        <span className="robot-model-tag">3D MODEL<br />TO BE ADDED</span>
+        <span className="robot-model-tag">SOLIDWORKS MODEL<br />NOT YET PROVIDED</span>
       </div>
       <div className="stage-footer">
-        <span>INTERACTIVE MODEL SPACE</span>
+        <span>3D VIEWER READY FOR GLB / GLTF</span>
         <span className="stage-coordinates">X 00.00&nbsp;&nbsp; Y 00.00&nbsp;&nbsp; Z 00.00</span>
       </div>
     </div>
@@ -253,9 +360,12 @@ function Hero() {
           </h1>
           <p className="hero-subtitle">{portfolio.subtitle}</p>
           <p className="hero-intro">
-            I bring mechanical engineering and robotics together to explore how machines
-            perceive, move, and work autonomously.
+            Design Engineer and Robotics MSc graduate with 4.5+ years of professional
+            mechanical design experience, now working across robotics, autonomy, and computer vision.
           </p>
+          <ul className="hero-highlights" aria-label="Professional profile">
+            {portfolio.recruiterHighlights.map((highlight) => <li key={highlight}>{highlight}</li>)}
+          </ul>
           <div className="hero-actions flex items-center gap-3">
             <a className="button button-primary" href="#projects">
               View projects <ArrowRight size={17} aria-hidden="true" />
@@ -275,7 +385,13 @@ function Hero() {
         </Reveal>
       </div>
       <Reveal className="hero-visual-wrap" delay={0.12}>
-        <RobotPlaceholder />
+        {portfolio.robotModel.src ? (
+          <Suspense fallback={<RobotPlaceholder />}>
+            <RobotModelViewer key={portfolio.robotModel.src} src={portfolio.robotModel.src} format={portfolio.robotModel.format} />
+          </Suspense>
+        ) : (
+          <RobotPlaceholder />
+        )}
       </Reveal>
       <a className="scroll-cue" href="#about">
         <span>SCROLL TO EXPLORE</span>
@@ -364,10 +480,10 @@ function Expertise() {
           <Reveal className="skill-card" key={category.title} delay={index * 0.055}>
             <div className="skill-card-top">
               <span className="skill-icon">
-                {index === 0 && <Bot size={19} aria-hidden="true" />}
-                {index === 1 && <Settings2 size={19} aria-hidden="true" />}
-                {index === 2 && <Code2 size={19} aria-hidden="true" />}
-                {index === 3 && <ScanLine size={19} aria-hidden="true" />}
+                {(() => {
+                  const ExpertiseIcon = expertiseIcons[index] || CircuitBoard
+                  return <ExpertiseIcon size={19} aria-hidden="true" />
+                })()}
               </span>
               <span className="skill-index">0{index + 1}</span>
             </div>
@@ -410,29 +526,106 @@ function Expertise() {
   )
 }
 
-function ProjectCard({ project, index, onOpen }) {
+function flattenSearchValues(value) {
+  if (typeof value === 'string' || typeof value === 'number') return [String(value)]
+  if (Array.isArray(value)) return value.flatMap(flattenSearchValues)
+  if (value && typeof value === 'object') {
+    return Object.entries(value).flatMap(([key, child]) => [key, ...flattenSearchValues(child)])
+  }
+  return []
+}
+
+function getYoutubeEmbedUrl(url) {
+  const match = url?.match(/youtu(?:be\.com\/(?:watch\?v=|embed\/)|\.be\/)([A-Za-z0-9_-]{11})/)
+  return match ? `https://www.youtube-nocookie.com/embed/${match[1]}` : ''
+}
+
+function ImagePreviewDialog({ media, onClose, dialogRef, closeRef, returnFocusRef }) {
+  const [imageError, setImageError] = useState(false)
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    const returnFocus = returnFocusRef.current
+    document.body.style.overflow = 'hidden'
+    closeRef.current?.focus()
+
+    const handleKeys = (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        onClose()
+      }
+      if (event.key === 'Tab' && dialogRef.current) {
+        const focusable = [...dialogRef.current.querySelectorAll('button:not(:disabled)')]
+        if (focusable.length && event.shiftKey && document.activeElement === focusable[0]) {
+          event.preventDefault()
+          focusable[focusable.length - 1].focus()
+        } else if (focusable.length && !event.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+          event.preventDefault()
+          focusable[0].focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeys)
+    return () => {
+      document.removeEventListener('keydown', handleKeys)
+      document.body.style.overflow = previousOverflow
+      returnFocus?.focus()
+    }
+  }, [closeRef, dialogRef, onClose, returnFocusRef])
+
+  return (
+    <div
+      className="image-preview-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <div className="image-preview-dialog" role="dialog" aria-modal="true" aria-label={media.alt || 'Expanded project image'} ref={dialogRef} tabIndex={-1}>
+        <button type="button" className="modal-close" onClick={onClose} aria-label="Close image preview" ref={closeRef}><X size={21} /></button>
+        {!imageError && <img src={media.src} alt={media.alt || ''} onError={() => setImageError(true)} />}
+        {imageError && <p className="image-preview-error" role="alert">This project image is currently unavailable.</p>}
+        {media.caption && <p>{media.caption}</p>}
+      </div>
+    </div>
+  )
+}
+
+function ProjectCard({ project, index, onOpen, onImageOpen }) {
   const ProjectIcon = projectIcons[index] || Bot
+  const projectNumber = String(index + 1).padStart(2, '0')
+  const [imageError, setImageError] = useState(false)
 
   return (
     <article className="project-card" data-project={project.id}>
-      <div className={`project-visual project-visual-${index + 1}`} aria-hidden="true">
-        <div className="project-visual-grid" />
-        <span className="project-visual-index">PROJECT / 0{index + 1}</span>
-        {project.image ? (
-          <img className="project-card-image" src={project.image} alt="" loading="lazy" />
+      <div className={`project-visual project-visual-${index + 1}`}>
+        <div className="project-visual-grid" aria-hidden="true" />
+        <span className="project-visual-index">PROJECT / {projectNumber}</span>
+        {project.image && !imageError ? (
+          <button
+            type="button"
+            className="project-image-button"
+            aria-label={`Expand image: ${project.imageAlt || project.title}`}
+            onClick={(event) => onImageOpen({ src: project.image, alt: project.imageAlt, caption: project.imageCaption }, event.currentTarget)}
+          >
+            <img className="project-card-image" src={project.image} alt={project.imageAlt || ''} loading="lazy" onError={() => setImageError(true)} />
+            <span className="image-expand-label"><Expand size={14} aria-hidden="true" /> View image</span>
+          </button>
         ) : (
           <>
-            <div className="project-placeholder-icon">
+            <div className="project-placeholder-icon" aria-hidden="true">
               <ProjectIcon size={34} strokeWidth={1.15} />
             </div>
-            <span className="project-image-note">PROJECT IMAGE<br />TO BE ADDED</span>
+            <span className="project-image-note">{imageError ? 'PROJECT IMAGE UNAVAILABLE' : <>NO PROJECT IMAGE<br />IN THE AVAILABLE REPOSITORY</>}</span>
           </>
         )}
-        <span className="project-corner-mark"><MoveUpRight size={15} /></span>
+        {project.imageCaption && <span className="project-visual-caption">{project.imageCaption}</span>}
+        <span className="project-corner-mark" aria-hidden="true"><MoveUpRight size={15} /></span>
       </div>
       <div className="project-info">
         <div className="project-title-line">
-          <span className="project-number">0{index + 1}</span>
+          <span className="project-number">{projectNumber}</span>
           <h3>{project.title}</h3>
         </div>
         <p className="project-description">{project.description}</p>
@@ -444,7 +637,7 @@ function ProjectCard({ project, index, onOpen }) {
         <div className="project-actions">
           <ExternalAction href={project.github} label="GitHub" icon={GithubIcon} className="text-action" />
           <ExternalAction href={project.demo} label="Demo video" icon={ArrowUpRight} className="text-action" />
-          <button type="button" className="text-action project-details-button" onClick={() => onOpen(project)}>
+          <button type="button" className="text-action project-details-button" onClick={(event) => onOpen(project, event.currentTarget)}>
             Engineering breakdown <ArrowRight size={14} />
           </button>
         </div>
@@ -457,23 +650,66 @@ function Projects() {
   const [filter, setFilter] = useState('All Projects')
   const [search, setSearch] = useState('')
   const [activeProject, setActiveProject] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const dialogRef = useRef(null)
+  const closeRef = useRef(null)
+  const modalTriggerRef = useRef(null)
+  const imageDialogRef = useRef(null)
+  const imageCloseRef = useRef(null)
+  const imageTriggerRef = useRef(null)
+  const closeImage = useCallback(() => setImagePreview(null), [])
   const filters = ['All Projects', 'Robotics', 'Mechanical Design', 'AI / Machine Learning', 'Embedded Systems']
   const filteredProjects = portfolio.projects.filter((project) => {
     const matchesFilter = filter === 'All Projects' || project.categories.includes(filter)
-    const haystack = [project.title, project.description, project.status, ...project.technologies].join(' ').toLowerCase()
+    const haystack = flattenSearchValues([project, portfolio.caseStudies[project.id]]).join(' ').toLowerCase()
     return matchesFilter && haystack.includes(search.trim().toLowerCase())
   })
 
   useEffect(() => {
     if (!activeProject) return undefined
-    const closeOnEscape = (event) => event.key === 'Escape' && setActiveProject(null)
-    document.addEventListener('keydown', closeOnEscape)
+    const previousOverflow = document.body.style.overflow
+    const trigger = modalTriggerRef.current
     document.body.style.overflow = 'hidden'
+    closeRef.current?.focus()
+    const handleKeys = (event) => {
+      if (event.key === 'Escape') {
+        if (imageDialogRef.current) return
+        setActiveProject(null)
+        return
+      }
+      if (event.key !== 'Tab' || imageDialogRef.current || !dialogRef.current) return
+      const focusable = [...dialogRef.current.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])')]
+      if (!focusable.length) return
+      if (event.shiftKey && document.activeElement === focusable[0]) {
+        event.preventDefault()
+        focusable[focusable.length - 1].focus()
+      } else if (!event.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+        event.preventDefault()
+        focusable[0].focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeys)
     return () => {
-      document.removeEventListener('keydown', closeOnEscape)
-      document.body.style.overflow = ''
+      document.removeEventListener('keydown', handleKeys)
+      document.body.style.overflow = previousOverflow
+      trigger?.focus()
     }
   }, [activeProject])
+
+  const openProject = (project, trigger) => {
+    modalTriggerRef.current = trigger
+    setActiveProject(project)
+  }
+
+  const closeProject = () => {
+    setImagePreview(null)
+    setActiveProject(null)
+  }
+
+  const openImage = (media, trigger) => {
+    imageTriggerRef.current = trigger
+    setImagePreview(media)
+  }
 
   return (
     <section className="section-shell content-section projects-section" id="projects">
@@ -481,12 +717,12 @@ function Projects() {
         <SectionHeading
           eyebrow="SELECTED WORK"
           title="Selected engineering work."
-          number="03"
+          number="04"
           description="Implementation evidence from repositories, with completed, partial, and planned work distinguished clearly."
         />
       </Reveal>
       <div className="project-controls">
-        <div className="project-filters" aria-label="Filter projects">
+        <div className="project-filters" role="group" aria-label="Filter projects">
           {filters.map((item) => (
             <button type="button" key={item} className={filter === item ? 'filter-active' : ''} aria-pressed={filter === item} onClick={() => setFilter(item)}>
               {item}
@@ -496,35 +732,109 @@ function Projects() {
         <label className="project-search">
           <Search size={16} aria-hidden="true" />
           <span className="sr-only">Search projects</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search projects"
+            aria-describedby="project-results"
+          />
         </label>
       </div>
+      <p className="project-results" id="project-results" aria-live="polite">{filteredProjects.length} {filteredProjects.length === 1 ? 'project' : 'projects'} shown</p>
       {filteredProjects.length === 0 && <p className="empty-projects">No projects match this search and filter.</p>}
       <div className="projects-grid">
         {filteredProjects.map((project, index) => (
           <Reveal key={project.title} delay={(index % 2) * 0.07}>
-            <ProjectCard project={project} index={index} onOpen={setActiveProject} />
+            <ProjectCard project={project} index={index} onOpen={openProject} onImageOpen={openImage} />
           </Reveal>
         ))}
       </div>
       {activeProject && (
         <div className="project-modal-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setActiveProject(null)
+          if (event.target === event.currentTarget) closeProject()
         }}>
-          <div className="project-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
-            <button type="button" className="modal-close" onClick={() => setActiveProject(null)} aria-label="Close project details"><X size={21} /></button>
+          <div className="project-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title" ref={dialogRef} tabIndex={-1}>
+            <button type="button" className="modal-close" onClick={closeProject} aria-label="Close project details" ref={closeRef}><X size={21} /></button>
             <p className="eyebrow"><span className="eyebrow-line" />Engineering breakdown</p>
             <h2 id="project-modal-title">{activeProject.title}</h2>
             <div className="modal-status"><span>{activeProject.status}</span></div>
-            <p className="modal-lead">{activeProject.description}</p>
+            <h3 className="modal-subheading">Recruiter overview</h3>
+            <div className="case-overview">
+              <section><h4>Objective</h4><p>{activeProject.description}</p></section>
+              <section><h4>Engineering problem</h4><p>{activeProject.problem}</p></section>
+              <section><h4>Contribution</h4><p>{activeProject.contribution}</p></section>
+              <section><h4>Project status</h4><p>{activeProject.status}</p></section>
+              <section className="case-overview-wide"><h4>Main result</h4><p>{portfolio.caseStudies[activeProject.id]?.mainResult || 'No verified result is documented in the available project materials.'}</p></section>
+              <section className="case-overview-wide">
+                <h4>Technologies</h4>
+                <ul className="overview-technology-list">{activeProject.technologies.map((technology) => <li key={technology}>{technology}</li>)}</ul>
+              </section>
+            </div>
+            <h3 className="modal-subheading">Technical engineering breakdown</h3>
+            {(() => {
+              const caseStudy = portfolio.caseStudies[activeProject.id] || {}
+              const architectureFlow = caseStudy.architectureFlow || []
+              const codeExample = caseStudy.codeExample
+              const excluded = new Set(['mainResult', 'architectureFlow', 'codeExample', 'evidence'])
+              return (
+                <>
+                  {architectureFlow.length > 0 && (
+                    <ol className="case-flow" aria-label="System architecture flow">
+                      {architectureFlow.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}
+                    </ol>
+                  )}
+                  {codeExample && (
+                    <figure className="case-code">
+                      <figcaption>{codeExample.caption}</figcaption>
+                      <pre><code>{codeExample.code}</code></pre>
+                    </figure>
+                  )}
             <div className="case-grid">
-              {Object.entries(activeProject.details).map(([key, value]) => (
+              {Object.entries(caseStudy).filter(([key]) => !excluded.has(key)).map(([key, value]) => (
                 <section className="case-section" key={key}>
                   <h3>{key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())}</h3>
                   {Array.isArray(value) ? <ul>{value.map((item) => <li key={item}>{item}</li>)}</ul> : <p>{value}</p>}
                 </section>
               ))}
             </div>
+                  {caseStudy.evidence?.length > 0 && (
+                    <section className="case-evidence">
+                      <h3>Repository evidence</h3>
+                      <ul>{caseStudy.evidence.map((item) => <li key={item}>{item}</li>)}</ul>
+                    </section>
+                  )}
+                </>
+              )
+            })()}
+            {(activeProject.image || activeProject.gallery?.length > 0) && (
+              <div className="case-media-grid">
+                {[
+                  ...(activeProject.image ? [{ src: activeProject.image, alt: activeProject.imageAlt, caption: activeProject.imageCaption }] : []),
+                  ...(activeProject.gallery || []),
+                ].map((media, index) => (
+                  <figure key={`${media.src}-${index}`}>
+                    <button type="button" className="case-media-button" onClick={(event) => openImage(media, event.currentTarget)} aria-label={`Expand project image: ${media.alt || activeProject.title}`}>
+                      <img src={media.src} alt={media.alt || ''} loading="lazy" />
+                      <span><Expand size={14} aria-hidden="true" /> Expand image</span>
+                    </button>
+                    {media.caption && <figcaption>{media.caption}</figcaption>}
+                  </figure>
+                ))}
+              </div>
+            )}
+            {activeProject.demo && getYoutubeEmbedUrl(activeProject.demo) && (
+              <div className="case-video">
+                <iframe
+                  src={getYoutubeEmbedUrl(activeProject.demo)}
+                  title={`${activeProject.title} project demonstration`}
+                  loading="lazy"
+                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </div>
+            )}
             <div className="modal-actions">
               <ExternalAction href={activeProject.github} label="View repository" icon={GithubIcon} className="button button-outline" />
               <ExternalAction href={activeProject.demo} label="Watch demo" icon={ArrowUpRight} className="button button-quiet" />
@@ -533,11 +843,18 @@ function Projects() {
           </div>
         </div>
       )}
+      {imagePreview && (
+        <ImagePreviewDialog
+          media={imagePreview}
+          onClose={closeImage}
+          dialogRef={imageDialogRef}
+          closeRef={imageCloseRef}
+          returnFocusRef={imageTriggerRef}
+        />
+      )}
     </section>
   )
 }
-
-const designIcons = [Boxes, Settings2, Bot, ScanLine, Code2]
 
 function MechanicalDesign() {
   return (
@@ -546,27 +863,34 @@ function MechanicalDesign() {
         <SectionHeading
           eyebrow="MECHANICAL DESIGN"
           title="Designed for the real world."
-          number="04"
-          description="A dedicated space for engineering work. Visuals and technical details will be added once the original models are shared."
+          number="05"
+          description="Image-led categories for original CAD, drawings, calculations, and simulation evidence. Empty slots are explicitly marked until source files are supplied."
         />
       </Reveal>
       <div className="design-grid">
         {portfolio.designAreas.map((area, index) => {
-          const DesignIcon = designIcons[index]
           return (
-            <Reveal className={`design-card design-card-${index + 1}`} key={area.title} delay={index * 0.045}>
-              <div className="design-card-visual" aria-hidden="true">
-                <div className="blueprint-grid" />
-                <div className="blueprint-outline blueprint-outline-one" />
-                <div className="blueprint-outline blueprint-outline-two" />
-                <DesignIcon className="design-card-icon" size={25} strokeWidth={1.25} />
-                <span className="design-image-label">IMAGE TO BE ADDED</span>
+            <Reveal className="design-card" key={area.title} delay={index * 0.045}>
+              <div className="design-card-visual">
+                {area.image ? (
+                  <img src={area.image} alt={`${area.title} original design`} loading="lazy" />
+                ) : (
+                  <div className="design-upload-placeholder" role="note">
+                    <ImagePlus size={22} aria-hidden="true" />
+                    <span>ORIGINAL IMAGE UPLOAD PENDING</span>
+                  </div>
+                )}
               </div>
               <div className="design-card-caption">
                 <span className="design-index">0{index + 1}</span>
                 <h3>{area.title}</h3>
-                <ArrowUpRight size={15} aria-hidden="true" />
               </div>
+              <p className="design-card-description">{area.description}</p>
+              {area.file ? (
+                <a className="design-file-link" href={area.file} download><FileText size={14} aria-hidden="true" /> Open original file</a>
+              ) : (
+                <span className="design-file-pending"><FileText size={14} aria-hidden="true" /> CAD / drawing file not added</span>
+              )}
             </Reveal>
           )
         })}
@@ -622,7 +946,7 @@ function Contact() {
             </button>
           )}
         </div>
-        <p className="contact-note">Contact details will be added when provided.</p>
+        <p className="contact-note">{portfolio.email || 'Contact details will be added when provided.'}</p>
       </Reveal>
       <Reveal className="contact-aside" delay={0.12}>
         <div className="contact-aside-top">
@@ -685,6 +1009,7 @@ function App() {
         <Hero />
         <About />
         <Expertise />
+        <Experience />
         <Projects />
         <MechanicalDesign />
         <Contact />
